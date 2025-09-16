@@ -1,7 +1,7 @@
 name: CI/CD to EC2
 on:
   push:
-    branches: [main]
+    branches: [master]
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   EC2_HOST: ${{ secrets.EC2_HOST }}
