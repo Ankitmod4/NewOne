@@ -1,45 +1,57 @@
 name: CI/CD to EC2
+
 on:
   push:
-    branches: [master]
+    branches: [master]   # master pe push hone par chalega
+
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
   EC2_HOST: ${{ secrets.EC2_HOST }}
   EC2_SSH_KEY: ${{ secrets.SSH_KEY }}
-  EC2_USER: ec2-user  # default for Amazon Linux, change if different
+  EC2_USER: ubuntu       # agar aap Ubuntu EC2 use kar rahe ho, Amazon Linux ke liye "ec2-user"
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '20'
-    - name: Install Dependencies
-      run: npm install
-    - name: Run Linting
-      run: npm run lint  # agar ESLint configured hai
-    - name: Run Tests
-      run: npm test  # Jest ya Mocha ke liye
+      - uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'   # LTS version
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Linting
+        run: npx eslint .      # safer than npm run lint
+
+      - name: Run Tests
+        run: npm test
+
   deploy:
-    needs: build-and-test  # deploy tabhi chalega jab build-and-test pass ho
+    needs: build-and-test   # build-and-test pass hone ke baad hi chalega
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup SSH
-      run: |
-        echo "$EC2_SSH_KEY" > private_key.pem
-        chmod 600 private_key.pem
-    - name: Deploy to EC2
-      run: |
-        # Code ko EC2 pe copy kar
-        rsync -avz --delete -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" ./ $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
-        # EC2 pe commands run kar (e.g., restart app)
-        ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
-          cd /home/$EC2_USER/app
-          npm install
-          pm2 restart app || pm2 start npm --name "app" -- start  # PM2 ya similar tool use kar
-        EOF
-    - name: Cleanup
-      run: rm -f private_key.pem
+      - uses: actions/checkout@v2
+
+      - name: Setup SSH
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Deploy to EC2
+        run: |
+          # Code ko EC2 pe copy karo
+          rsync -avz --delete -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" ./ $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
+
+          # EC2 pe commands run karo
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            cd /home/$EC2_USER/app
+            npm install
+            pm2 restart app || pm2 start npm --name "app" -- start
+          EOF
+
+      - name: Cleanup
+        run: rm -f private_key.pem
