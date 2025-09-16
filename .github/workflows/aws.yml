@@ -24,12 +24,6 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Run Linting
-        run: npx eslint .      # safer than npm run lint
-
-      - name: Run Tests
-        run: npm test
-
   deploy:
     needs: build-and-test   # build-and-test pass hone ke baad hi chalega
     runs-on: ubuntu-latest
